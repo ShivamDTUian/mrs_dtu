@@ -2,18 +2,22 @@ import streamlit as st
 import pickle 
 import pandas as pd
 import requests
+import os
+
+st.write("Files in current directory:", os.listdir())
+movie_dict_path = 'Moviw_recommendation_sys/movie_dict.pkl'
+similarity_path = 'Moviw_recommendation_sys/similarity.pkl'
+
 
 def fetch_poster(movie_id):
-    
     response = requests.get('https://api.themoviedb.org/3/movie/{}?api_key=f53ead6221d84221e10915757e84d727&language=en-US'.format(movie_id))
     data = response.json()
-    
-    return "https://image.tmdb.org/t/p/w500" +  data['poster_path']
+    print(data)  # Print the response to debug
+    return "https://image.tmdb.org/t/p/w500" + data['poster_path']
+
 
 def fetch_movie_url(movie_id):
     return f"https://www.themoviedb.org/movie/{movie_id}"
-
-
 
 
 def Recommend(movie):
@@ -22,7 +26,7 @@ def Recommend(movie):
         movie_index = int(movies[movies['title'] == movie].index[0]) 
     except IndexError:
         print(f"Movie '{movie}' not found in the database.")
-        return 
+        return [], [], []   
     
     distance = similarity[movie_index]
     movie_list = sorted(list(enumerate(distance)), reverse=True, key=lambda x: x[1])[1:11]
@@ -31,22 +35,24 @@ def Recommend(movie):
     recommended_movie_url = []
     
     
-    for i in movie_list :
-        movie_id = movies.iloc[i[0]].movie_id   # here we want to fetch posters using movie id from API  
+    for i in movie_list:
+        movie_id = movies.iloc[i[0]].movie_id
         recommended_movies.append((movies.iloc[i[0]].title).upper())
-        #fetching poster from API
+        
         recommended_movies_poster.append(fetch_poster(movie_id))
+        recommended_movie_url.append(fetch_movie_url(movie_id))
         
-        recommended_movie_url.append(fetch_movie_url)
-        
-    return recommended_movies, recommended_movies_poster, recommended_movie_url   # Also return posters
+    return recommended_movies, recommended_movies_poster, recommended_movie_url  # Also return posters
 
-
-movie_dict = pickle.load(open('.vscode\movie_dict.pkl','rb'))
+try:
+    movie_dict = pickle.load(open(movie_dict_path, 'rb'))
+    similarity = pickle.load(open(similarity_path, 'rb'))
+except FileNotFoundError as e:
+    st.error(f"File not found: {e}")
+    st.stop()
 movies = pd.DataFrame(movie_dict)
-similarity = pickle.load(open('.vscode\similarity.pkl','rb'))
 
-st.title('Movie Recommender System ')
+st.title('Movie Recommender System')
 
 selected_movie_name  = st.selectbox(
 "How would you like to be contacted?",
@@ -56,11 +62,12 @@ st.write("You Selected:", (selected_movie_name).upper())
 
 if st.button('Recommend'):
     name, poster, url = Recommend(selected_movie_name)
+
     
     col1, col2, col3, col4, col5 = st.columns(5)  # Create 5 columns
     
     with col1:
-         st.markdown(f"[![{name[0]}]({poster[0]})]({url[0]})")
+        st.markdown(f"[![{name[0]}]({poster[0]})]({url[0]})")
 
     with col2:
         st.markdown(f"[![{name[1]}]({poster[1]})]({url[1]})")
@@ -74,10 +81,10 @@ if st.button('Recommend'):
     with col5:
        st.markdown(f"[![{name[4]}]({poster[4]})]({url[4]})")
         
-    col6, col7, col8, col9, col10 = st.columns(5)  #Create 5 columns
+    col6, col7, col8, col9, col10 = st.columns(5)
     
     with col6:
-            st.markdown(f"[![{name[5]}]({poster[5]})]({url[5]})")
+        st.markdown(f"[![{name[5]}]({poster[5]})]({url[5]})")
         
     with col7:
        st.markdown(f"[![{name[6]}]({poster[6]})]({url[6]})")
